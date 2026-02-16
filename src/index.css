@@ -1,13 +1,105 @@
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+:root {
+  --primary: #4f46e5; --primary-hover: #4338ca;
+  --secondary: #64748b; --bg-body: #f1f5f9; --bg-sidebar: #0f172a; --bg-card: #ffffff;
+  --text-main: #1e293b; --text-muted: #94a3b8; --border: #e2e8f0;
+  --danger: #ef4444; --warning: #f59e0b; --teal-main: #2dd4bf; --teal-dark: #14b8a6;
+  --radius: 8px; --sidebar-width: 260px;
+}
+body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg-body); color: var(--text-main); }
+
+/* Layout */
+.layout { display: flex; min-height: 100vh; }
+.content { margin-left: var(--sidebar-width); width: calc(100% - var(--sidebar-width)); padding: 2rem; box-sizing: border-box; }
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+
+/* Sidebar */
+.sidebar { width: var(--sidebar-width); background: var(--bg-sidebar); color: white; position: fixed; height: 100vh; display: flex; flex-direction: column; z-index: 100; }
+.sidebar-header { padding: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.sidebar-nav { flex: 1; padding: 1rem 0; display: flex; flex-direction: column; }
+.nav-item { padding: 12px 25px; color: var(--text-muted); text-decoration: none; cursor: pointer; display: flex; justify-content: space-between; }
+.nav-item:hover { background: rgba(255,255,255,0.05); color: white; }
+.nav-item.active { background: var(--primary); color: white; border-right: 4px solid #818cf8; }
+.submenu { background: rgba(0,0,0,0.3); display: flex; flex-direction: column; }
+.nav-item.sub-item { padding-left: 45px; font-size: 0.9rem; }
+.logout-btn { margin: 1.5rem; padding: 0.75rem; background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid var(--danger); cursor: pointer; width: calc(100% - 3rem); font-weight: bold; }
+
+/* Dashboard & Components */
+.card { background: var(--bg-card); padding: 1.5rem; border-radius: var(--radius); box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 1.5rem; }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+.stat-card { background: white; padding: 1.5rem; border-radius: var(--radius); border-left: 4px solid var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+.stat-value { font-size: 1.8rem; font-weight: 700; margin-top: 5px; }
+
+/* Forms & Inputs */
+.search-input { width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: 50px; margin-bottom: 1.5rem; box-sizing: border-box; }
+.form-control { width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 1rem; box-sizing: border-box; }
+.btn { padding: 0.6rem 1.2rem; border-radius: var(--radius); border: none; font-weight: 600; cursor: pointer; }
+.btn-primary { background: var(--primary); color: white; }
+.btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
+.btn-edit { background: var(--warning); color: white; margin-right: 5px; }
+.btn-delete { background: var(--danger); color: white; }
+
+/* Table */
+.table-container { overflow-x: auto; }
+.styled-table { width: 100%; border-collapse: collapse; }
+.styled-table th, .styled-table td { padding: 1rem; text-align: left; border-bottom: 1px solid var(--border); }
+.badge { background: #e0e7ff; color: var(--primary); padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; }
+
+/* Pagination */
+.pagination { display: flex; justify-content: center; gap: 5px; margin-top: 1.5rem; }
+.page-btn { width: 35px; height: 35px; border: 1px solid var(--border); background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 4px; }
+.page-btn.active { background: var(--bg-sidebar); color: white; border-color: var(--bg-sidebar); }
+
+/* Login Page */
+.login-page { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #f6f5f7; }
+.login-container { display: flex; width: 800px; max-width: 90%; min-height: 500px; background: white; border-radius: 10px; box-shadow: 0 14px 28px rgba(0,0,0,0.25); overflow: hidden; }
+.login-left { flex: 1; background: linear-gradient(to right, var(--teal-main), var(--teal-dark)); color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; text-align: center; }
+.login-right { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; }
+.login-title { color: var(--teal-main); font-size: 2rem; margin-bottom: 20px; }
+.login-form { width: 100%; display: flex; flex-direction: column; gap: 15px; }
+.login-input { background: #eee; border: none; padding: 15px; width: 100%; border-radius: 5px; box-sizing: border-box; }
+.btn-login { background: var(--teal-main); color: white; padding: 15px 50px; border-radius: 25px; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; text-transform: uppercase; }
+.error-msg { color: var(--danger); font-size: 0.8rem; margin-top: 5px; }
+/* ... existing styles ... */
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+.modal-content {
+  background: white;
+  padding: 2rem;
+  border-radius: var(--radius);
+  width: 400px;
+  max-width: 90%;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.btn-cancel {
+  background: var(--secondary);
+  color: white;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
