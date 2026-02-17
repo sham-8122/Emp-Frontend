@@ -52,11 +52,14 @@ src/
     store.js
   components/
     Charts.jsx
+    ConfirmationModal.jsx
+    EmployeeDetailsModal.jsx
     EmployeeForm.jsx
     Navbar.jsx
     ProtectedRoute.jsx
     Sidebar.jsx
     StatCard.jsx
+    TableSkeleton.jsx
   features/
     auth/
       authSlice.js
@@ -67,10 +70,12 @@ src/
     Dashboard.jsx
     EmployeeList.jsx
     Login.jsx
+    SalaryDetails.jsx
   services/
     api.js
   utils/
     exportToCSV.js
+    salaryUtils.js
   App.css
   App.jsx
   App.test.js
@@ -80,6 +85,7 @@ src/
   repomix-output.xml
   reportWebVitals.js
   setupTests.js
+.env.dev
 .gitignore
 package.json
 README.md
@@ -87,6 +93,460 @@ README.md
 
 <files>
 This section contains the contents of the repository's files.
+
+<file path="src/components/EmployeeDetailsModal.jsx">
+import React, { useEffect, useState, useCallback } from "react"; // Added useCallback
+import API from "../services/api"; 
+import { calculateBreakup } from "../utils/salaryUtils";
+// Removed 'Legend' from the import below to fix Line 4:40
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts"; 
+
+const EmployeeDetailsModal = ({ isOpen, onClose, employee }) => {
+  const [activeTab, setActiveTab] = useState("overview");
+  const [history, setHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  // --- MODIFIED: Wrapped fetchHistory in useCallback to fix Line 17:6 ---
+  const fetchHistory = useCallback(async () => {
+    if (!employee) return;
+    setLoadingHistory(true);
+    try {
+      const res = await API.get(`/employees/${employee.id}/history`);
+      setHistory(res.data);
+    } catch (err) {
+      console.error("Failed to load history", err);
+    } finally {
+      setLoadingHistory(false);
+    }
+  }, [employee]); // Function updates only when the employee object changes
+
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab("overview");
+      fetchHistory();
+    }
+  }, [isOpen, fetchHistory]); // fetchHistory is now a stable dependency
+
+  if (!isOpen || !employee) return null;
+
+  const breakupData = calculateBreakup(employee.salary);
+  const imageUrl = employee.profileImage 
+    ? `http://localhost:5000/${employee.profileImage.replace(/\\/g, "/")}`
+    : null;
+
+  const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-US', {
+    year: 'numeric', month: 'short', day: 'numeric'
+  });
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ width: '600px', padding: 0 }}>
+        
+        {/* Header */}
+        <div style={{ background: 'linear-gradient(135deg, var(--primary), var(--teal-main))', padding: '2rem', color: 'white', display: 'flex', alignItems: 'center', gap: '20px', borderRadius: '8px 8px 0 0' }}>
+          <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'white', overflow: 'hidden', border: '3px solid rgba(255,255,255,0.5)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+            {imageUrl ? <img src={imageUrl} style={{ width: '100%', height:'100%', objectFit:'cover'}} alt="" /> : <span style={{fontSize:'2rem'}}>👤</span>}
+          </div>
+          <div>
+            <h2 style={{ margin: 0 }}>{employee.name}</h2>
+            <p style={{ margin: '5px 0 0', opacity: 0.9 }}>{employee.role}</p>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', borderBottom: '1px solid #eee' }}>
+          <button 
+            onClick={() => setActiveTab("overview")}
+            style={{ flex: 1, padding: '15px', border: 'none', background: activeTab === 'overview' ? '#f8fafc' : 'white', fontWeight: activeTab === 'overview' ? 'bold' : 'normal', cursor: 'pointer', borderBottom: activeTab === 'overview' ? '3px solid var(--primary)' : 'none' }}
+          >
+            Overview
+          </button>
+          <button 
+            onClick={() => setActiveTab("salary")}
+            style={{ flex: 1, padding: '15px', border: 'none', background: activeTab === 'salary' ? '#f8fafc' : 'white', fontWeight: activeTab === 'salary' ? 'bold' : 'normal', cursor: 'pointer', borderBottom: activeTab === 'salary' ? '3px solid var(--primary)' : 'none' }}
+          >
+            Salary Structure
+          </button>
+        </div>
+
+        {/* Content */}
+        <div style={{ padding: '2rem', maxHeight: '400px', overflowY: 'auto' }}>
+          
+          {activeTab === "overview" && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+              <div><label style={{color:'gray', fontSize:'0.8rem'}}>Email</label><div style={{fontWeight:600}}>{employee.email}</div></div>
+              <div><label style={{color:'gray', fontSize:'0.8rem'}}>Joined</label><div style={{fontWeight:600}}>{formatDate(employee.createdAt)}</div></div>
+              <div><label style={{color:'gray', fontSize:'0.8rem'}}>Current CTC</label><div style={{fontWeight:600, color:'#10b981'}}>₹{employee.salary.toLocaleString()}</div></div>
+              <div><label style={{color:'gray', fontSize:'0.8rem'}}>Employee ID</label><div style={{fontWeight:600}}>EMP-{employee.id}</div></div>
+            </div>
+          )}
+
+          {activeTab === "salary" && (
+            <div>
+              <h4 style={{marginTop:0}}>Monthly Breakup (Estimated)</h4>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <div style={{ width: '50%', height: '200px' }}>
+                  <ResponsiveContainer>
+                    <PieChart>
+                      <Pie data={breakupData} innerRadius={40} outerRadius={60} paddingAngle={5} dataKey="value">
+                        {breakupData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value) => `₹${value.toLocaleString()}`} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div style={{ width: '50%', fontSize: '0.85rem' }}>
+                  {breakupData.map((item) => (
+                    <div key={item.name} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <span style={{ width: '10px', height: '10px', background: item.color, borderRadius: '50%', display:'inline-block' }}></span>
+                        {item.name}
+                      </span>
+                      <strong>₹{item.value.toLocaleString()}</strong>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <h4 style={{marginBottom:'10px', marginTop:'20px'}}>Increment History</h4>
+              {loadingHistory ? <p>Loading...</p> : history.length === 0 ? (
+                <p style={{ color: '#999', fontStyle: 'italic' }}>No salary changes recorded.</p>
+              ) : (
+                <div style={{ background: '#f8fafc', borderRadius: '8px', padding: '10px' }}>
+                  {history.map((h) => (
+                    <div key={h.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px', borderBottom: '1px solid #e2e8f0', fontSize: '0.9rem' }}>
+                      <span style={{ color: '#64748b' }}>{formatDate(h.incrementDate)}</span>
+                      <span style={{ display:'flex', alignItems:'center', gap:'10px' }}>
+                        <span style={{ textDecoration: 'line-through', color: '#94a3b8' }}>₹{h.previousSalary.toLocaleString()}</span>
+                        <span>➡️</span>
+                        <span style={{ color: '#10b981', fontWeight: 'bold' }}>₹{h.newSalary.toLocaleString()}</span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div style={{ padding: '1rem 2rem', textAlign: 'right', borderTop: '1px solid #eee' }}>
+          <button className="btn btn-secondary" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default EmployeeDetailsModal;
+</file>
+
+<file path="src/components/TableSkeleton.jsx">
+import React from 'react';
+
+const TableSkeleton = ({ rows = 5, columns = 5 }) => {
+  return (
+    <>
+      {Array.from({ length: rows }).map((_, rowIndex) => (
+        <tr key={rowIndex}>
+          {Array.from({ length: columns }).map((_, colIndex) => (
+            <td key={colIndex}>
+              <div className={colIndex === 0 ? "skeleton skeleton-avatar" : "skeleton skeleton-text"} 
+                   style={{ width: colIndex === 0 ? '40px' : '80%' }}>
+              </div>
+            </td>
+          ))}
+        </tr>
+      ))}
+    </>
+  );
+};
+
+export default TableSkeleton;
+</file>
+
+<file path="src/pages/SalaryDetails.jsx">
+import React, { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import API from '../services/api';
+import Sidebar from '../components/Sidebar';
+import { toast } from 'react-toastify';
+import { calculateBreakup } from '../utils/salaryUtils';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable'; // --- FIXED: Import autoTable directly ---
+
+const SalaryDetails = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  
+  const [employee, setEmployee] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isSending, setIsSending] = useState(false);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [empRes, histRes] = await Promise.all([
+          API.get(`/employees/${id}`),
+          API.get(`/employees/${id}/history`)
+        ]);
+        setEmployee(empRes.data);
+        setHistory(histRes.data);
+      } catch (error) {
+        toast.error("Failed to fetch employee data.");
+        navigate('/employees');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [id, navigate]);
+
+  const handleDownloadPDF = () => {
+    if (!employee) return;
+    const doc = new jsPDF();
+    const breakupData = calculateBreakup(employee.salary);
+    
+    // Header Section
+    doc.setFontSize(22);
+    doc.setTextColor(79, 70, 229); // Primary theme color
+    doc.text("Salary Pay Slip", 14, 22);
+    
+    doc.setFontSize(12);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Employee Name: ${employee.name}`, 14, 32);
+    doc.text(`Role: ${employee.role}`, 14, 38);
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 44);
+
+    // --- FIXED: Using imported autoTable function ---
+    autoTable(doc, {
+      startY: 50,
+      head: [['Component', 'Amount (₹)']],
+      body: breakupData.map(item => [item.name, `₹${item.value.toLocaleString()}`]),
+      foot: [['Total Gross Monthly Salary', `₹${employee.salary.toLocaleString()}`]],
+      theme: 'grid',
+      headStyles: { fillColor: [79, 70, 229] },
+      footStyles: { fillColor: [224, 231, 255], textColor: [0, 0, 0], fontStyle: 'bold' }
+    });
+
+    // Add History Table if available
+    if (history.length > 0) {
+      const finalY = doc.lastAutoTable.finalY; // Get position after first table
+      doc.setFontSize(16);
+      doc.text("Increment History", 14, finalY + 15);
+      
+      autoTable(doc, {
+        startY: finalY + 20,
+        head: [['Date', 'Previous (₹)', 'New Salary (₹)']],
+        body: history.map(h => [
+          new Date(h.incrementDate).toLocaleDateString(),
+          h.previousSalary.toLocaleString(),
+          h.newSalary.toLocaleString(),
+        ]),
+        theme: 'striped'
+      });
+    }
+
+    doc.save(`PaySlip_${employee.name.replace(/\s+/g, '_')}.pdf`);
+    toast.success("Pay slip PDF generated successfully!");
+  };
+
+  const handleSendEmail = async () => {
+    setIsSending(true);
+    try {
+      await API.post(`/employees/${id}/send-payslip`);
+      toast.success("Pay slip email sent to employee!");
+    } catch (error) {
+      toast.error("Failed to send email. Check SMTP settings.");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="layout"><Sidebar /><div className="content"><p>Loading details...</p></div></div>
+    );
+  }
+
+  const breakup = calculateBreakup(employee.salary);
+
+  return (
+    <div className="layout">
+      <Sidebar />
+      <div className="content">
+        <div className="page-header">
+          <h2>Salary Breakup & History</h2>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button className="btn btn-primary" onClick={handleDownloadPDF}>Download PDF</button>
+            <button className="btn" style={{ background: '#10b981', color: 'white' }} onClick={handleSendEmail} disabled={isSending}>
+              {isSending ? "Sending..." : "Send Email"}
+            </button>
+          </div>
+        </div>
+
+        {/* Profile Card */}
+        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <div className="avatar-placeholder" style={{ width: '80px', height: '80px', fontSize: '2rem' }}>
+            {employee.profileImage ? (
+              <img src={`http://localhost:5000/${employee.profileImage.replace(/\\/g, "/")}`} style={{width:'100%', height:'100%', borderRadius:'50%', objectFit:'cover'}} alt="" />
+            ) : "👤"}
+          </div>
+          <div>
+            <h3 style={{ margin: 0 }}>{employee.name}</h3>
+            <p style={{ margin: '5px 0', color: 'var(--secondary)' }}>{employee.role}</p>
+            <span className="badge">{employee.email}</span>
+          </div>
+        </div>
+
+        {/* Breakup Table */}
+        <div className="card">
+          <h4>Earnings Breakdown</h4>
+          <table className="styled-table">
+            <thead><tr><th>Component</th><th>Monthly Amount</th></tr></thead>
+            <tbody>
+              {breakup.map(item => (
+                <tr key={item.name}><td>{item.name}</td><td>₹{item.value.toLocaleString()}</td></tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr style={{ background: '#f8fafc', fontWeight: 'bold' }}>
+                <td>Gross Monthly Salary</td><td>₹{employee.salary.toLocaleString()}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        {/* History Table */}
+        <div className="card">
+          <h4>Increment Records</h4>
+          {history.length > 0 ? (
+            <table className="styled-table">
+              <thead><tr><th>Revision Date</th><th>Previous Salary</th><th>New Salary</th></tr></thead>
+              <tbody>
+                {history.map(h => (
+                  <tr key={h.id}>
+                    <td>{new Date(h.incrementDate).toLocaleDateString()}</td>
+                    <td style={{ textDecoration: 'line-through', color: '#94a3b8' }}>₹{h.previousSalary.toLocaleString()}</td>
+                    <td style={{ color: '#10b981', fontWeight: 'bold' }}>₹{h.newSalary.toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : <p style={{ color: 'var(--secondary)', fontStyle: 'italic' }}>No history records found.</p>}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default SalaryDetails;
+</file>
+
+<file path="src/utils/salaryUtils.js">
+export const calculateBreakup = (totalSalary) => {
+  const basic = Math.round(totalSalary * 0.40);
+  const hra = Math.round(totalSalary * 0.20);
+  const da = Math.round(totalSalary * 0.10);
+  const travel = Math.round(totalSalary * 0.05);
+  const special = totalSalary - (basic + hra + da + travel);
+
+  // Return data formatted for Recharts
+  return [
+    { name: "Basic Salary", value: basic, color: "#4f46e5" },
+    { name: "HRA", value: hra, color: "#10b981" },
+    { name: "DA", value: da, color: "#f59e0b" },
+    { name: "Travel Allowance", value: travel, color: "#06b6d4" },
+    { name: "Special Allowance", value: special, color: "#8b5cf6" },
+  ];
+};
+</file>
+
+<file path=".env.dev">
+BASE_APP_URL=http://localhost:5000
+</file>
+
+<file path="public/index.html">
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta
+      name="description"
+      content="Web site created using create-react-app"
+    />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+    <!--
+      manifest.json provides metadata used when your web app is installed on a
+      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
+    -->
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <!--
+      Notice the use of %PUBLIC_URL% in the tags above.
+      It will be replaced with the URL of the `public` folder during the build.
+      Only files inside the `public` folder can be referenced from the HTML.
+
+      Unlike "/favicon.ico" or "favicon.ico", "%PUBLIC_URL%/favicon.ico" will
+      work correctly both with client-side routing and a non-root public URL.
+      Learn how to configure a non-root public URL by running `npm run build`.
+    -->
+    <title>React App</title>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+    <!--
+      This HTML file is a template.
+      If you open it directly in the browser, you will see an empty page.
+
+      You can add webfonts, meta tags, or analytics to this file.
+      The build step will place the bundled scripts into the <body> tag.
+
+      To begin the development, run `npm start` or `yarn start`.
+      To create a production bundle, use `npm run build` or `yarn build`.
+    -->
+  </body>
+</html>
+</file>
+
+<file path="public/manifest.json">
+{
+  "short_name": "React App",
+  "name": "Create React App Sample",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "logo192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "logo512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#ffffff"
+}
+</file>
+
+<file path="public/robots.txt">
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Disallow:
+</file>
 
 <file path="src/app/store.js">
 import { configureStore } from "@reduxjs/toolkit";
@@ -110,8 +570,11 @@ import {
   Tooltip,
   PieChart,
   Pie,
+  Cell,
 } from "recharts";
 import { useSelector } from "react-redux";
+
+const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#AF19FF", "#FF4560"];
 
 const Charts = () => {
   const { list } = useSelector((state) => state.employees);
@@ -133,30 +596,76 @@ const Charts = () => {
   }));
 
   return (
-    <>
+    <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-around", alignItems: "center", width: "100%" }}>
       <BarChart width={500} height={300} data={salaryData}>
         <XAxis dataKey="name" />
         <YAxis />
         <Tooltip />
-        <Bar dataKey="salary" />
+        <Bar dataKey="salary" fill="#8884d8">
+          {salaryData.map((entry, index) => (
+            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+          ))}
+        </Bar>
       </BarChart>
 
       <PieChart width={400} height={300}>
-        <Pie data={roleData} dataKey="value" nameKey="name" />
+        <Pie
+          data={roleData}
+          dataKey="value"
+          nameKey="name"
+          cx="50%"
+          cy="50%"
+          outerRadius={100}
+          fill="#8884d8"
+          label
+        >
+          {roleData.map((entry, index) => (
+            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+          ))}
+        </Pie>
+        <Tooltip />
       </PieChart>
-    </>
+    </div>
   );
 };
 
 export default Charts;
 </file>
 
+<file path="src/components/ConfirmationModal.jsx">
+import React from 'react';
+
+const ConfirmationModal = ({ isOpen, title, message, onConfirm, onClose }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content">
+        <h3 style={{ marginTop: 0 }}>{title}</h3>
+        <p style={{ color: "var(--text-muted)" }}>{message}</p>
+        <div className="modal-actions">
+          <button className="btn btn-sm btn-cancel" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="btn btn-sm btn-delete" onClick={onConfirm}>
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ConfirmationModal;
+</file>
+
 <file path="src/components/EmployeeForm.jsx">
 import React, { useState, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { addEmployee, updateEmployee } from "../features/employees/employeeSlice";
+import { toast } from "react-toastify"; // Import
 
-// --- NEW: List of IT job roles ---
+// --- 1. FULL LIST OF JOB ROLES RESTORED ---
 const jobRoles = [
   "Software Engineer",
   "Senior Software Engineer",
@@ -169,39 +678,76 @@ const jobRoles = [
   "QA Engineer",
   "DevOps Engineer",
   "Data Scientist",
+  "HR Manager",
+  "Sales Executive",
+  "Intern"
 ];
 
 const EmployeeForm = ({ editing, setEditing, onSuccess }) => {
   const dispatch = useDispatch();
+  
+  // Form State
   const [form, setForm] = useState({ name: "", email: "", role: "", salary: "" });
+  const [image, setImage] = useState(null); // File state
 
+  // Pre-fill form if editing
   useEffect(() => {
     if (editing) {
       setForm({
         name: editing.name || "",
         email: editing.email || "",
-        role: editing.role || "",
+        role: editing.role || "", // This ensures the dropdown selects the correct role
         salary: editing.salary || "",
       });
+    } else {
+      // Reset if not editing
+      setForm({ name: "", email: "", role: "", salary: "" });
+      setImage(null);
     }
   }, [editing]);
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  // Handle Text/Select Inputs
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+  
+  // Handle File Input
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      setImage(e.target.files[0]);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const payload = { ...form, salary: Number(form.salary) };
-    try {
+
+    // Create FormData for file upload
+    const formData = new FormData();
+    formData.append("name", form.name);
+    formData.append("email", form.email);
+    formData.append("role", form.role);
+    formData.append("salary", form.salary);
+    
+    if (image) {
+      formData.append("image", image);
+    }
+
+        try {
       if (editing) {
-        await dispatch(updateEmployee({ id: editing.id, updatedData: payload })).unwrap();
+        await dispatch(updateEmployee({ id: editing.id, updatedData: formData })).unwrap();
+        toast.success("Employee updated successfully!"); // Success Toast
         if (setEditing) setEditing(null);
       } else {
-        await dispatch(addEmployee(payload)).unwrap();
+        await dispatch(addEmployee(formData)).unwrap();
+        toast.success("New employee added!"); // Success Toast
       }
-      if (onSuccess) onSuccess();
+      
+          if (onSuccess) onSuccess();
       setForm({ name: "", email: "", role: "", salary: "" });
+      setImage(null);
     } catch (error) {
       console.error("Failed:", error);
+      toast.error("Operation failed. Please try again."); // Error Toast
     }
   };
 
@@ -209,20 +755,67 @@ const EmployeeForm = ({ editing, setEditing, onSuccess }) => {
     <div className="card">
       <h3>{editing ? "Edit Employee" : "Add New Employee"}</h3>
       <form onSubmit={handleSubmit}>
-        <div className="form-group"><input className="form-control" name="name" value={form.name} placeholder="Name" onChange={handleChange} required /></div>
-        <div className="form-group"><input className="form-control" name="email" value={form.email} placeholder="Email" onChange={handleChange} required /></div>
         
-        {/* --- MODIFIED: Replaced text input with a select dropdown --- */}
+        {/* Profile Picture Upload Section */}
+        <div className="form-group" style={{ textAlign: "center", marginBottom: "20px" }}>
+          <label htmlFor="file-upload" style={{ cursor: "pointer", display: "inline-block" }}>
+            <div style={{ 
+              width: "100px", height: "100px", borderRadius: "50%", 
+              background: "#e2e8f0", margin: "0 auto", overflow: "hidden", 
+              display: "flex", alignItems: "center", justifyContent: "center",
+              border: "2px solid var(--primary)"
+            }}>
+              {/* Logic to show: New Preview OR Existing Image OR Placeholder */}
+              {image ? (
+                <img src={URL.createObjectURL(image)} alt="Preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              ) : editing && editing.profileImage ? (
+                <img src={`http://localhost:5000/${editing.profileImage.replace(/\\/g, "/")}`} alt="Current" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              ) : (
+                <span style={{ fontSize: "30px", color: "#64748b" }}>📷</span>
+              )}
+            </div>
+            <div style={{ marginTop: "10px", color: "var(--primary)", fontSize: "0.9rem", fontWeight: "bold" }}>
+              {editing ? "Change Photo" : "Upload Photo"}
+            </div>
+          </label>
+          <input id="file-upload" type="file" accept="image/*" onChange={handleFileChange} style={{ display: "none" }} />
+        </div>
+
+        {/* Name Input */}
         <div className="form-group">
-          <select className="form-control" name="role" value={form.role} onChange={handleChange} required>
+          <input className="form-control" name="name" value={form.name} placeholder="Name" onChange={handleChange} required />
+        </div>
+
+        {/* Email Input */}
+        <div className="form-group">
+          <input className="form-control" name="email" value={form.email} placeholder="Email" onChange={handleChange} required />
+        </div>
+        
+        {/* --- ROLE DROPDOWN --- */}
+        <div className="form-group">
+          <select 
+            className="form-control" 
+            name="role" 
+            value={form.role} 
+            onChange={handleChange} 
+            required
+            style={{ backgroundColor: "white" }} // Force white background for visibility
+          >
             <option value="" disabled>Select a Role</option>
-            {jobRoles.map(role => (
-              <option key={role} value={role}>{role}</option>
+            {jobRoles.map((role) => (
+              <option key={role} value={role}>
+                {role}
+              </option>
             ))}
           </select>
         </div>
 
-        <div className="form-group"><input className="form-control" type="number" name="salary" value={form.salary} placeholder="Salary" onChange={handleChange} required /></div>
+        {/* Salary Input */}
+        <div className="form-group">
+          <input className="form-control" type="number" name="salary" value={form.salary} placeholder="Salary" onChange={handleChange} required />
+        </div>
+        
+        {/* Submit Button */}
         <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
           {editing ? "Update Employee" : "Create Employee"}
         </button>
@@ -376,11 +969,13 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import API from "../../services/api";
 
 // Fetch with Search & Pagination
+
+// Fetch with Search, Pagination, Sort & Filter
 export const fetchEmployees = createAsyncThunk(
   "employees/fetchEmployees",
-  async ({ page = 1, search = "" } = {}) => {
-    // Pass query params
-    const response = await API.get(`/employees?page=${page}&limit=5&search=${search}`);
+  async ({ page = 1, search = "", sort = "createdAt_DESC", role = "" } = {}) => {
+    // Pass all query params to the API
+    const response = await API.get(`/employees?page=${page}&limit=5&search=${search}&sort=${sort}&role=${role}`);
     return response.data;
   }
 );
@@ -404,6 +999,11 @@ export const fetchEmployeeStats = createAsyncThunk("employees/fetchEmployeeStats
   const response = await API.get("/employees/stats");
   return response.data;
 });
+export const fetchHistory = createAsyncThunk("employees/fetchHistory", async (id) => {
+  const response = await API.get(`/employees/${id}/history`);
+  return response.data;
+});
+
 
 const employeeSlice = createSlice({
   name: "employees",
@@ -477,40 +1077,86 @@ import {
 import Sidebar from "../components/Sidebar";
 import Charts from "../components/Charts";
 import StatCard from "../components/StatCard";
-import { downloadCSV } from "../utils/exportToCSV.js"; // Import Export Utility
+import ConfirmationModal from "../components/ConfirmationModal";
+import TableSkeleton from "../components/TableSkeleton"; // Import Skeleton
+import { downloadCSV } from "../utils/exportToCSV.js";
+import { toast } from "react-toastify";
+
+// Job roles for filter
+const jobRoles = [
+  "Software Engineer", "Senior Software Engineer", "Frontend Developer", "Backend Developer", 
+  "Full Stack Developer", "UI/UX Designer", "Product Manager", "Project Manager", "QA Engineer", 
+  "DevOps Engineer", "Data Scientist", "HR Manager", "Sales Executive", "Intern"
+];
 
 const Dashboard = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [search, setSearch] = useState("");
 
+  // --- State Management ---
+  const [search, setSearch] = useState("");
+  const [sortOption, setSortOption] = useState("createdAt_DESC");
+  const [filterRole, setFilterRole] = useState("");
+  
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState(null);
+
+  // Redux State
   const { list, loading, stats, totalPages, currentPage } = useSelector(
     (state) => state.employees
   );
 
-  // 1. Initial Load & Debounced Search
+  // --- Data Fetching (Debounced) ---
   useEffect(() => {
     const timer = setTimeout(() => {
-      dispatch(fetchEmployees({ page: 1, search }));
+      dispatch(fetchEmployees({ page: 1, search, sort: sortOption, role: filterRole }));
       dispatch(fetchEmployeeStats());
-    }, 500); // Wait 500ms after typing stops
+    }, 500); 
 
     return () => clearTimeout(timer);
-  }, [search, dispatch]);
+  }, [search, sortOption, filterRole, dispatch]);
 
-  // 2. Handle Delete
-  const handleDelete = (id) => {
-    if (window.confirm("Are you sure you want to delete this employee?")) {
-      dispatch(deleteEmployee(id)).then(() => {
-        dispatch(fetchEmployees({ page: currentPage, search })); // Refresh List
-        dispatch(fetchEmployeeStats()); // Refresh Stats
-      });
+  // --- Handlers ---
+  const handleDeleteClick = (id) => {
+    setDeleteId(id);
+    setIsModalOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (deleteId) {
+      dispatch(deleteEmployee(deleteId))
+        .unwrap()
+        .then(() => {
+          dispatch(fetchEmployees({ page: currentPage, search, sort: sortOption, role: filterRole }));
+          dispatch(fetchEmployeeStats());
+          toast.success("Employee deleted successfully.");
+        })
+        .catch(() => {
+          toast.error("Failed to delete employee.");
+        });
+
+      setIsModalOpen(false);
+      setDeleteId(null);
     }
   };
 
-  // 3. Handle Pagination
   const handlePageChange = (newPage) => {
-    dispatch(fetchEmployees({ page: newPage, search }));
+    dispatch(fetchEmployees({ page: newPage, search, sort: sortOption, role: filterRole }));
+  };
+  
+  const resetFilters = () => {
+    setSearch("");
+    setSortOption("createdAt_DESC");
+    setFilterRole("");
+    toast.info("Filters have been reset.");
+  };
+
+  // Helper to render profile image
+  const renderProfileImage = (path) => {
+    if (!path) return <div className="avatar-placeholder">?</div>;
+    const normalizedPath = path.replace(/\\/g, "/"); 
+    return <img src={`http://localhost:5000/${normalizedPath}`} alt="profile" className="avatar-img" />;
   };
 
   return (
@@ -529,7 +1175,7 @@ const Dashboard = () => {
           <StatCard title="Top Earner" value={stats.highestPaidEmployee || "N/A"} />
         </div>
 
-        {/* Charts */}
+        {/* Analytics Charts */}
         <div className="card">
           <h3>Analytics</h3>
           <div style={{ display: "flex", justifyContent: "center", width: "100%" }}>
@@ -537,17 +1183,12 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* List + Controls */}
+        {/* Employee Directory */}
         <div className="card">
           <div className="page-header" style={{ marginBottom: "15px", flexWrap: "wrap", gap: "10px" }}>
             <h3>Employee Directory</h3>
-            
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button 
-                className="btn btn-sm" 
-                style={{ backgroundColor: "#10b981", color: "white" }} 
-                onClick={() => downloadCSV(list, "Salary_Report.csv")}
-              >
+              <button className="btn btn-sm" style={{ backgroundColor: "#10b981", color: "white" }} onClick={() => downloadCSV(list, "Salary_Report.csv")}>
                 ⬇ Export Report
               </button>
               <button className="btn btn-primary btn-sm" onClick={() => navigate("/add-employee")}>
@@ -556,15 +1197,31 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* Search Input */}
-          <input
-            type="text"
-            className="search-input"
-            placeholder="Search by name, email, or role..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+          {/* Filter Controls */}
+          <div className="filter-controls">
+            <input
+              type="text"
+              className="search-input"
+              placeholder="Search by name or email..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <select className="filter-select" value={filterRole} onChange={(e) => setFilterRole(e.target.value)}>
+              <option value="">Filter by Role</option>
+              {jobRoles.map(role => <option key={role} value={role}>{role}</option>)}
+            </select>
+            <select className="filter-select" value={sortOption} onChange={(e) => setSortOption(e.target.value)}>
+              <option value="createdAt_DESC">Sort by: Newest</option>
+              <option value="createdAt_ASC">Sort by: Oldest</option>
+              <option value="name_ASC">Sort by: Name (A-Z)</option>
+              <option value="name_DESC">Sort by: Name (Z-A)</option>
+              <option value="salary_DESC">Sort by: Salary (High-Low)</option>
+              <option value="salary_ASC">Sort by: Salary (Low-High)</option>
+            </select>
+            <button className="btn btn-sm" onClick={resetFilters} style={{background: '#64748b', color: 'white'}}>Reset</button>
+          </div>
 
+          {/* Table */}
           <div className="table-container">
             <table className="styled-table">
               <thead>
@@ -577,18 +1234,27 @@ const Dashboard = () => {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan="4" style={{ textAlign: "center" }}>Loading...</td></tr>
+                  /* --- Skeleton Loader --- */
+                  <TableSkeleton rows={5} columns={4} />
                 ) : list.length === 0 ? (
                   <tr><td colSpan="4" style={{ textAlign: "center" }}>No records found.</td></tr>
                 ) : (
                   list.map((emp) => (
                     <tr key={emp.id}>
-                      <td><strong>{emp.name}</strong><br /><small style={{ color: "var(--secondary)" }}>{emp.email}</small></td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          {renderProfileImage(emp.profileImage)}
+                          <div>
+                            <strong>{emp.name}</strong><br />
+                            <small style={{ color: "var(--secondary)" }}>{emp.email}</small>
+                          </div>
+                        </div>
+                      </td>
                       <td><span className="badge">{emp.role}</span></td>
                       <td>₹{emp.salary.toLocaleString()}</td>
                       <td>
                         <button className="btn btn-edit btn-sm" onClick={() => navigate("/add-employee", { state: { employee: emp } })}>Edit</button>
-                        <button className="btn btn-delete btn-sm" onClick={() => handleDelete(emp.id)}>Del</button>
+                        <button className="btn btn-delete btn-sm" onClick={() => handleDeleteClick(emp.id)}>Del</button>
                       </td>
                     </tr>
                   ))
@@ -613,6 +1279,15 @@ const Dashboard = () => {
           )}
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal 
+        isOpen={isModalOpen}
+        title="Confirm Deletion"
+        message="Are you sure you want to delete this employee? This action cannot be undone."
+        onConfirm={handleConfirmDelete}
+        onClose={() => setIsModalOpen(false)}
+      />
     </div>
   );
 };
@@ -621,18 +1296,63 @@ export default Dashboard;
 </file>
 
 <file path="src/pages/EmployeeList.jsx">
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchEmployees, deleteEmployee } from "../features/employees/employeeSlice";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
+import ConfirmationModal from "../components/ConfirmationModal";
+import EmployeeDetailsModal from "../components/EmployeeDetailsModal";
+import TableSkeleton from "../components/TableSkeleton"; // Import Skeleton
+import { toast } from "react-toastify";
 
 const EmployeeList = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { list, loading, totalPages, currentPage } = useSelector((state) => state.employees);
+  
+  // Modal States
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [deleteId, setDeleteId] = useState(null);
 
   useEffect(() => { dispatch(fetchEmployees({ page: 1 })); }, [dispatch]);
+
+  // --- Handlers ---
+  const handleDeleteClick = (id) => {
+    setDeleteId(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (deleteId) {
+      dispatch(deleteEmployee(deleteId))
+        .unwrap()
+        .then(() => {
+          toast.success("Employee deleted successfully!");
+          dispatch(fetchEmployees({ page: currentPage }));
+        })
+        .catch(() => {
+          toast.error("Failed to delete employee.");
+        });
+
+      setIsDeleteModalOpen(false);
+      setDeleteId(null);
+    }
+  };
+
+  const handleViewClick = (employee) => {
+    setSelectedEmployee(employee);
+    setIsViewModalOpen(true);
+  };
+
+  const renderProfileImage = (path) => {
+    if (!path) return <div className="avatar-placeholder">?</div>;
+    const normalizedPath = path.replace(/\\/g, "/"); 
+    return <img src={`http://localhost:5000/${normalizedPath}`} alt="profile" className="avatar-img" />;
+  };
 
   return (
     <div className="layout">
@@ -644,22 +1364,52 @@ const EmployeeList = () => {
         </div>
         <div className="card table-container">
           <table className="styled-table">
-            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Salary</th><th>Actions</th></tr></thead>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Salary</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
             <tbody>
-              {loading ? <tr><td colSpan="5">Loading...</td></tr> : list.map((emp) => (
-                <tr key={emp.id}>
-                  <td><strong>{emp.name}</strong></td>
-                  <td>{emp.email}</td>
-                  <td><span className="badge">{emp.role}</span></td>
-                  <td>₹{emp.salary.toLocaleString()}</td>
-                  <td>
-                    <button className="btn btn-edit btn-sm" onClick={() => navigate("/add-employee", { state: { employee: emp } })}>Edit</button>
-                    <button className="btn btn-delete btn-sm" onClick={() => dispatch(deleteEmployee(emp.id)).then(() => dispatch(fetchEmployees({ page: currentPage })))}>Del</button>
-                  </td>
-                </tr>
-              ))}
+              {loading ? (
+                /* --- Skeleton Loader --- */
+                <TableSkeleton rows={5} columns={5} />
+              ) : list.length === 0 ? (
+                <tr><td colSpan="5" style={{ textAlign: "center" }}>No employees found.</td></tr>
+              ) : (
+                list.map((emp) => (
+                  <tr key={emp.id}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        {renderProfileImage(emp.profileImage)}
+                        <div><strong>{emp.name}</strong></div>
+                      </div>
+                    </td>
+                    <td>{emp.email}</td>
+                    <td><span className="badge">{emp.role}</span></td>
+                    <td>₹{emp.salary.toLocaleString()}</td>
+                    <td>
+                      <button 
+                        className="btn btn-sm" 
+                        style={{ background: '#3b82f6', color: 'white', marginRight: '5px' }} 
+                        onClick={() => handleViewClick(emp)} 
+                        title="View Details"
+                      >
+                        👁
+                      </button>
+                      <button className="btn btn-edit btn-sm" onClick={() => navigate("/add-employee", { state: { employee: emp } })}>Edit</button>
+                      <button className="btn btn-delete btn-sm" onClick={() => handleDeleteClick(emp.id)}>Del</button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
+          
+          {/* Pagination */}
           {totalPages > 1 && (
             <div className="pagination">
               {Array.from({ length: totalPages }, (_, i) => (
@@ -669,6 +1419,22 @@ const EmployeeList = () => {
           )}
         </div>
       </div>
+
+      {/* Delete Modal */}
+      <ConfirmationModal 
+        isOpen={isDeleteModalOpen}
+        title="Delete Employee"
+        message="Are you sure you want to remove this employee record?"
+        onConfirm={handleConfirmDelete}
+        onClose={() => setIsDeleteModalOpen(false)}
+      />
+
+      {/* Details Modal */}
+      <EmployeeDetailsModal 
+        isOpen={isViewModalOpen}
+        employee={selectedEmployee}
+        onClose={() => setIsViewModalOpen(false)}
+      />
     </div>
   );
 };
@@ -681,34 +1447,106 @@ import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { loginUser } from "../features/auth/authSlice";
+import { toast } from "react-toastify";
 
 const Login = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { token, loading, error } = useSelector((state) => state.auth);
+  
+  const { token, loading } = useSelector((state) => state.auth);
+  
   const [form, setForm] = useState({ email: "", password: "" });
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
-  const handleSubmit = (e) => { e.preventDefault(); dispatch(loginUser(form)); };
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
 
-  useEffect(() => { if (token) navigate("/dashboard", { replace: true }); }, [token, navigate]);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await dispatch(loginUser(form)).unwrap();
+      toast.success("Login Successful!");
+    } catch (err) {
+      toast.error(typeof err === 'string' ? err : "Invalid Credentials");
+    }
+  };
+
+  const handleForgotPassword = () => {
+    toast.info("Password reset feature coming soon!");
+  };
+
+  useEffect(() => {
+    if (token) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [token, navigate]);
 
   return (
-    <div className="login-page">
-      <div className="login-container">
-        <div className="login-left">
-          <h1>Welcome Back!</h1>
-          <p>Login to access your dashboard.</p>
-        </div>
-        <div className="login-right">
-          <h2 className="login-title">Login</h2>
-          <form onSubmit={handleSubmit} className="login-form">
-            <input name="email" placeholder="Email" className="login-input" onChange={handleChange} required />
-            <input type="password" name="password" placeholder="Password" className="login-input" onChange={handleChange} required />
-            {error && <div className="error-msg">{typeof error === 'string' ? error : 'Login failed'}</div>}
-            <button type="submit" className="btn-login" disabled={loading}>{loading ? "..." : "LOG IN"}</button>
-          </form>
-        </div>
+    <div className="login-page-minimal">
+      <div className="login-container-minimal">
+        <h2 className="login-title-minimal">Admin Login</h2>
+        
+        <form onSubmit={handleSubmit} className="login-form-minimal">
+
+          {/* Username/Email Input */}
+          <div className="input-group-minimal">
+            <span className="input-icon-minimal">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z"/>
+              </svg>
+            </span>
+            <input 
+              type="email"
+              name="email"
+              placeholder="Username" 
+              className="login-input-minimal"
+              value={form.email}
+              onChange={handleChange}
+              required 
+            />
+          </div>
+
+          {/* Password Input */}
+          <div className="input-group-minimal">
+            <span className="input-icon-minimal">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2m3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2M5 9a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v5H5z"/>
+              </svg>
+            </span>
+            <input 
+              type="password" 
+              name="password" 
+              placeholder="Password" 
+              className="login-input-minimal" 
+              value={form.password}
+              onChange={handleChange}
+              required 
+            />
+          </div>
+          
+          {/* Options */}
+          <div className="login-options-minimal">
+            <label className="remember-me-minimal">
+              <input type="checkbox" /> Remember me
+            </label>
+            <button 
+              type="button" 
+              className="forgot-password-minimal"
+              onClick={handleForgotPassword}
+            >
+              Forgot Password?
+            </button>
+          </div>
+
+          {/* Login Button */}
+          <button 
+            type="submit" 
+            className="login-btn-minimal"
+            disabled={loading}
+          >
+            {loading ? "..." : "LOGIN"}
+          </button>
+        </form>
       </div>
     </div>
   );
@@ -721,7 +1559,7 @@ export default Login;
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: "http://localhost:5000/api",
+  baseURL: process.env.REACT_APP_API_BASE_URL || "http://localhost:5000/api",
 });
 
 // Attach token automatically
@@ -763,71 +1601,134 @@ export const downloadCSV = (data, filename = "report.csv") => {
 };
 </file>
 
+<file path="src/App.css">
+.App {
+  text-align: center;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+</file>
+
 <file path="src/App.jsx">
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 
+// --- React Toastify Imports ---
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
+// --- Page Imports ---
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import EmployeeList from "./pages/EmployeeList";
 import AddEmployee from "./pages/AddEmployee";
+import SalaryDetails from "./pages/SalaryDetails"; // Imported SalaryDetails
 
-/* 🔐 Private Route */
+// --- Private Route Component ---
 const PrivateRoute = ({ children }) => {
   const token = useSelector((state) => state.auth.token);
-
   if (!token) {
     return <Navigate to="/" replace />;
   }
-
   return children;
 };
 
 function App() {
   return (
     <BrowserRouter>
+      {/* Toast notifications positioned at the top center */}
+      <ToastContainer 
+        position="top-center" 
+        autoClose={3000} 
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
+      
       <Routes>
-
-        {/* Public */}
+        {/* Public Route */}
         <Route path="/" element={<Login />} />
 
-        {/* Protected */}
-        <Route
-          path="/dashboard"
-          element={
-            <PrivateRoute>
-              <Dashboard />
-            </PrivateRoute>
-          }
+        {/* Protected Routes */}
+        <Route 
+          path="/dashboard" 
+          element={<PrivateRoute><Dashboard /></PrivateRoute>} 
+        />
+        <Route 
+          path="/employees" 
+          element={<PrivateRoute><EmployeeList /></PrivateRoute>} 
+        />
+        <Route 
+          path="/add-employee" 
+          element={<PrivateRoute><AddEmployee /></PrivateRoute>} 
+        />
+        
+        {/* --- NEW: Dynamic Route for Salary Pay Slip & History --- */}
+        <Route 
+          path="/employees/:id/salary" 
+          element={<PrivateRoute><SalaryDetails /></PrivateRoute>} 
         />
 
-        <Route
-          path="/employees"
-          element={
-            <PrivateRoute>
-              <EmployeeList />
-            </PrivateRoute>
-          }
-        />
-
-        <Route
-          path="/add-employee"
-          element={
-            <PrivateRoute>
-              <AddEmployee />
-            </PrivateRoute>
-          }
-        />
-
-        {/* Fallback */}
+        {/* Fallback Route */}
         <Route path="*" element={<Navigate to="/" />} />
-
       </Routes>
     </BrowserRouter>
   );
 }
 
 export default App;
+</file>
+
+<file path="src/App.test.js">
+import { render, screen } from '@testing-library/react';
+import App from './App';
+
+test('renders learn react link', () => {
+  render(<App />);
+  const linkElement = screen.getByText(/learn react/i);
+  expect(linkElement).toBeInTheDocument();
+});
+</file>
+
+<file path="src/logo.svg">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 841.9 595.3"><g fill="#61DAFB"><path d="M666.3 296.5c0-32.5-40.7-63.3-103.1-82.4 14.4-63.6 8-114.2-20.2-130.4-6.5-3.8-14.1-5.6-22.4-5.6v22.3c4.6 0 8.3.9 11.4 2.6 13.6 7.8 19.5 37.5 14.9 75.7-1.1 9.4-2.9 19.3-5.1 29.4-19.6-4.8-41-8.5-63.5-10.9-13.5-18.5-27.5-35.3-41.6-50 32.6-30.3 63.2-46.9 84-46.9V78c-27.5 0-63.5 19.6-99.9 53.6-36.4-33.8-72.4-53.2-99.9-53.2v22.3c20.7 0 51.4 16.5 84 46.6-14 14.7-28 31.4-41.3 49.9-22.6 2.4-44 6.1-63.6 11-2.3-10-4-19.7-5.2-29-4.7-38.2 1.1-67.9 14.6-75.8 3-1.8 6.9-2.6 11.5-2.6V78.5c-8.4 0-16 1.8-22.6 5.6-28.1 16.2-34.4 66.7-19.9 130.1-62.2 19.2-102.7 49.9-102.7 82.3 0 32.5 40.7 63.3 103.1 82.4-14.4 63.6-8 114.2 20.2 130.4 6.5 3.8 14.1 5.6 22.5 5.6 27.5 0 63.5-19.6 99.9-53.6 36.4 33.8 72.4 53.2 99.9 53.2 8.4 0 16-1.8 22.6-5.6 28.1-16.2 34.4-66.7 19.9-130.1 62-19.1 102.5-49.9 102.5-82.3zm-130.2-66.7c-3.7 12.9-8.3 26.2-13.5 39.5-4.1-8-8.4-16-13.1-24-4.6-8-9.5-15.8-14.4-23.4 14.2 2.1 27.9 4.7 41 7.9zm-45.8 106.5c-7.8 13.5-15.8 26.3-24.1 38.2-14.9 1.3-30 2-45.2 2-15.1 0-30.2-.7-45-1.9-8.3-11.9-16.4-24.6-24.2-38-7.6-13.1-14.5-26.4-20.8-39.8 6.2-13.4 13.2-26.8 20.7-39.9 7.8-13.5 15.8-26.3 24.1-38.2 14.9-1.3 30-2 45.2-2 15.1 0 30.2.7 45 1.9 8.3 11.9 16.4 24.6 24.2 38 7.6 13.1 14.5 26.4 20.8 39.8-6.3 13.4-13.2 26.8-20.7 39.9zm32.3-13c5.4 13.4 10 26.8 13.8 39.8-13.1 3.2-26.9 5.9-41.2 8 4.9-7.7 9.8-15.6 14.4-23.7 4.6-8 8.9-16.1 13-24.1zM421.2 430c-9.3-9.6-18.6-20.3-27.8-32 9 .4 18.2.7 27.5.7 9.4 0 18.7-.2 27.8-.7-9 11.7-18.3 22.4-27.5 32zm-74.4-58.9c-14.2-2.1-27.9-4.7-41-7.9 3.7-12.9 8.3-26.2 13.5-39.5 4.1 8 8.4 16 13.1 24 4.7 8 9.5 15.8 14.4 23.4zM420.7 163c9.3 9.6 18.6 20.3 27.8 32-9-.4-18.2-.7-27.5-.7-9.4 0-18.7.2-27.8.7 9-11.7 18.3-22.4 27.5-32zm-74 58.9c-4.9 7.7-9.8 15.6-14.4 23.7-4.6 8-8.9 16-13 24-5.4-13.4-10-26.8-13.8-39.8 13.1-3.1 26.9-5.8 41.2-7.9zm-90.5 125.2c-35.4-15.1-58.3-34.9-58.3-50.6 0-15.7 22.9-35.6 58.3-50.6 8.6-3.7 18-7 27.7-10.1 5.7 19.6 13.2 40 22.5 60.9-9.2 20.8-16.6 41.1-22.2 60.6-9.9-3.1-19.3-6.5-28-10.2zM310 490c-13.6-7.8-19.5-37.5-14.9-75.7 1.1-9.4 2.9-19.3 5.1-29.4 19.6 4.8 41 8.5 63.5 10.9 13.5 18.5 27.5 35.3 41.6 50-32.6 30.3-63.2 46.9-84 46.9-4.5-.1-8.3-1-11.3-2.7zm237.2-76.2c4.7 38.2-1.1 67.9-14.6 75.8-3 1.8-6.9 2.6-11.5 2.6-20.7 0-51.4-16.5-84-46.6 14-14.7 28-31.4 41.3-49.9 22.6-2.4 44-6.1 63.6-11 2.3 10.1 4.1 19.8 5.2 29.1zm38.5-66.7c-8.6 3.7-18 7-27.7 10.1-5.7-19.6-13.2-40-22.5-60.9 9.2-20.8 16.6-41.1 22.2-60.6 9.9 3.1 19.3 6.5 28.1 10.2 35.4 15.1 58.3 34.9 58.3 50.6-.1 15.7-23 35.6-58.4 50.6zM320.8 78.4z"/><circle cx="420.9" cy="296.5" r="45.7"/><path d="M520.5 78.1z"/></g></svg>
 </file>
 
 <file path="src/repomix-output.xml">
@@ -1790,223 +2691,6 @@ import '@testing-library/jest-dom';
 </files>
 </file>
 
-<file path="public/index.html">
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#000000" />
-    <meta
-      name="description"
-      content="Web site created using create-react-app"
-    />
-    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
-    <!--
-      manifest.json provides metadata used when your web app is installed on a
-      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
-    -->
-    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
-    <!--
-      Notice the use of %PUBLIC_URL% in the tags above.
-      It will be replaced with the URL of the `public` folder during the build.
-      Only files inside the `public` folder can be referenced from the HTML.
-
-      Unlike "/favicon.ico" or "favicon.ico", "%PUBLIC_URL%/favicon.ico" will
-      work correctly both with client-side routing and a non-root public URL.
-      Learn how to configure a non-root public URL by running `npm run build`.
-    -->
-    <title>React App</title>
-  </head>
-  <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
-    <!--
-      This HTML file is a template.
-      If you open it directly in the browser, you will see an empty page.
-
-      You can add webfonts, meta tags, or analytics to this file.
-      The build step will place the bundled scripts into the <body> tag.
-
-      To begin the development, run `npm start` or `yarn start`.
-      To create a production bundle, use `npm run build` or `yarn build`.
-    -->
-  </body>
-</html>
-</file>
-
-<file path="public/manifest.json">
-{
-  "short_name": "React App",
-  "name": "Create React App Sample",
-  "icons": [
-    {
-      "src": "favicon.ico",
-      "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/x-icon"
-    },
-    {
-      "src": "logo192.png",
-      "type": "image/png",
-      "sizes": "192x192"
-    },
-    {
-      "src": "logo512.png",
-      "type": "image/png",
-      "sizes": "512x512"
-    }
-  ],
-  "start_url": ".",
-  "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
-}
-</file>
-
-<file path="public/robots.txt">
-# https://www.robotstxt.org/robotstxt.html
-User-agent: *
-Disallow:
-</file>
-
-<file path="src/App.css">
-.App {
-  text-align: center;
-}
-
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
-}
-
-.App-link {
-  color: #61dafb;
-}
-
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-</file>
-
-<file path="src/App.test.js">
-import { render, screen } from '@testing-library/react';
-import App from './App';
-
-test('renders learn react link', () => {
-  render(<App />);
-  const linkElement = screen.getByText(/learn react/i);
-  expect(linkElement).toBeInTheDocument();
-});
-</file>
-
-<file path="src/index.css">
-:root {
-  --primary: #4f46e5; --primary-hover: #4338ca;
-  --secondary: #64748b; --bg-body: #f1f5f9; --bg-sidebar: #0f172a; --bg-card: #ffffff;
-  --text-main: #1e293b; --text-muted: #94a3b8; --border: #e2e8f0;
-  --danger: #ef4444; --warning: #f59e0b; --teal-main: #2dd4bf; --teal-dark: #14b8a6;
-  --radius: 8px; --sidebar-width: 260px;
-}
-body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg-body); color: var(--text-main); }
-
-/* Layout */
-.layout { display: flex; min-height: 100vh; }
-.content { margin-left: var(--sidebar-width); width: calc(100% - var(--sidebar-width)); padding: 2rem; box-sizing: border-box; }
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
-
-/* Sidebar */
-.sidebar { width: var(--sidebar-width); background: var(--bg-sidebar); color: white; position: fixed; height: 100vh; display: flex; flex-direction: column; z-index: 100; }
-.sidebar-header { padding: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.1); }
-.sidebar-nav { flex: 1; padding: 1rem 0; display: flex; flex-direction: column; }
-.nav-item { padding: 12px 25px; color: var(--text-muted); text-decoration: none; cursor: pointer; display: flex; justify-content: space-between; }
-.nav-item:hover { background: rgba(255,255,255,0.05); color: white; }
-.nav-item.active { background: var(--primary); color: white; border-right: 4px solid #818cf8; }
-.submenu { background: rgba(0,0,0,0.3); display: flex; flex-direction: column; }
-.nav-item.sub-item { padding-left: 45px; font-size: 0.9rem; }
-.logout-btn { margin: 1.5rem; padding: 0.75rem; background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid var(--danger); cursor: pointer; width: calc(100% - 3rem); font-weight: bold; }
-
-/* Dashboard & Components */
-.card { background: var(--bg-card); padding: 1.5rem; border-radius: var(--radius); box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 1.5rem; }
-.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
-.stat-card { background: white; padding: 1.5rem; border-radius: var(--radius); border-left: 4px solid var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-.stat-value { font-size: 1.8rem; font-weight: 700; margin-top: 5px; }
-
-/* Forms & Inputs */
-.search-input { width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: 50px; margin-bottom: 1.5rem; box-sizing: border-box; }
-.form-control { width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 1rem; box-sizing: border-box; }
-.btn { padding: 0.6rem 1.2rem; border-radius: var(--radius); border: none; font-weight: 600; cursor: pointer; }
-.btn-primary { background: var(--primary); color: white; }
-.btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
-.btn-edit { background: var(--warning); color: white; margin-right: 5px; }
-.btn-delete { background: var(--danger); color: white; }
-
-/* Table */
-.table-container { overflow-x: auto; }
-.styled-table { width: 100%; border-collapse: collapse; }
-.styled-table th, .styled-table td { padding: 1rem; text-align: left; border-bottom: 1px solid var(--border); }
-.badge { background: #e0e7ff; color: var(--primary); padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; }
-
-/* Pagination */
-.pagination { display: flex; justify-content: center; gap: 5px; margin-top: 1.5rem; }
-.page-btn { width: 35px; height: 35px; border: 1px solid var(--border); background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 4px; }
-.page-btn.active { background: var(--bg-sidebar); color: white; border-color: var(--bg-sidebar); }
-
-/* Login Page */
-.login-page { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #f6f5f7; }
-.login-container { display: flex; width: 800px; max-width: 90%; min-height: 500px; background: white; border-radius: 10px; box-shadow: 0 14px 28px rgba(0,0,0,0.25); overflow: hidden; }
-.login-left { flex: 1; background: linear-gradient(to right, var(--teal-main), var(--teal-dark)); color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; text-align: center; }
-.login-right { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; }
-.login-title { color: var(--teal-main); font-size: 2rem; margin-bottom: 20px; }
-.login-form { width: 100%; display: flex; flex-direction: column; gap: 15px; }
-.login-input { background: #eee; border: none; padding: 15px; width: 100%; border-radius: 5px; box-sizing: border-box; }
-.btn-login { background: var(--teal-main); color: white; padding: 15px 50px; border-radius: 25px; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; text-transform: uppercase; }
-.error-msg { color: var(--danger); font-size: 0.8rem; margin-top: 5px; }
-</file>
-
-<file path="src/index.js">
-import React from "react";
-import ReactDOM from "react-dom/client";
-import { Provider } from "react-redux";
-import { store } from "./app/store";
-import App from "./App";
-import "./index.css";
-
-const root = ReactDOM.createRoot(document.getElementById("root"));
-
-root.render(
-  <Provider store={store}>
-    <App />
-  </Provider>
-);
-</file>
-
-<file path="src/logo.svg">
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 841.9 595.3"><g fill="#61DAFB"><path d="M666.3 296.5c0-32.5-40.7-63.3-103.1-82.4 14.4-63.6 8-114.2-20.2-130.4-6.5-3.8-14.1-5.6-22.4-5.6v22.3c4.6 0 8.3.9 11.4 2.6 13.6 7.8 19.5 37.5 14.9 75.7-1.1 9.4-2.9 19.3-5.1 29.4-19.6-4.8-41-8.5-63.5-10.9-13.5-18.5-27.5-35.3-41.6-50 32.6-30.3 63.2-46.9 84-46.9V78c-27.5 0-63.5 19.6-99.9 53.6-36.4-33.8-72.4-53.2-99.9-53.2v22.3c20.7 0 51.4 16.5 84 46.6-14 14.7-28 31.4-41.3 49.9-22.6 2.4-44 6.1-63.6 11-2.3-10-4-19.7-5.2-29-4.7-38.2 1.1-67.9 14.6-75.8 3-1.8 6.9-2.6 11.5-2.6V78.5c-8.4 0-16 1.8-22.6 5.6-28.1 16.2-34.4 66.7-19.9 130.1-62.2 19.2-102.7 49.9-102.7 82.3 0 32.5 40.7 63.3 103.1 82.4-14.4 63.6-8 114.2 20.2 130.4 6.5 3.8 14.1 5.6 22.5 5.6 27.5 0 63.5-19.6 99.9-53.6 36.4 33.8 72.4 53.2 99.9 53.2 8.4 0 16-1.8 22.6-5.6 28.1-16.2 34.4-66.7 19.9-130.1 62-19.1 102.5-49.9 102.5-82.3zm-130.2-66.7c-3.7 12.9-8.3 26.2-13.5 39.5-4.1-8-8.4-16-13.1-24-4.6-8-9.5-15.8-14.4-23.4 14.2 2.1 27.9 4.7 41 7.9zm-45.8 106.5c-7.8 13.5-15.8 26.3-24.1 38.2-14.9 1.3-30 2-45.2 2-15.1 0-30.2-.7-45-1.9-8.3-11.9-16.4-24.6-24.2-38-7.6-13.1-14.5-26.4-20.8-39.8 6.2-13.4 13.2-26.8 20.7-39.9 7.8-13.5 15.8-26.3 24.1-38.2 14.9-1.3 30-2 45.2-2 15.1 0 30.2.7 45 1.9 8.3 11.9 16.4 24.6 24.2 38 7.6 13.1 14.5 26.4 20.8 39.8-6.3 13.4-13.2 26.8-20.7 39.9zm32.3-13c5.4 13.4 10 26.8 13.8 39.8-13.1 3.2-26.9 5.9-41.2 8 4.9-7.7 9.8-15.6 14.4-23.7 4.6-8 8.9-16.1 13-24.1zM421.2 430c-9.3-9.6-18.6-20.3-27.8-32 9 .4 18.2.7 27.5.7 9.4 0 18.7-.2 27.8-.7-9 11.7-18.3 22.4-27.5 32zm-74.4-58.9c-14.2-2.1-27.9-4.7-41-7.9 3.7-12.9 8.3-26.2 13.5-39.5 4.1 8 8.4 16 13.1 24 4.7 8 9.5 15.8 14.4 23.4zM420.7 163c9.3 9.6 18.6 20.3 27.8 32-9-.4-18.2-.7-27.5-.7-9.4 0-18.7.2-27.8.7 9-11.7 18.3-22.4 27.5-32zm-74 58.9c-4.9 7.7-9.8 15.6-14.4 23.7-4.6 8-8.9 16-13 24-5.4-13.4-10-26.8-13.8-39.8 13.1-3.1 26.9-5.8 41.2-7.9zm-90.5 125.2c-35.4-15.1-58.3-34.9-58.3-50.6 0-15.7 22.9-35.6 58.3-50.6 8.6-3.7 18-7 27.7-10.1 5.7 19.6 13.2 40 22.5 60.9-9.2 20.8-16.6 41.1-22.2 60.6-9.9-3.1-19.3-6.5-28-10.2zM310 490c-13.6-7.8-19.5-37.5-14.9-75.7 1.1-9.4 2.9-19.3 5.1-29.4 19.6 4.8 41 8.5 63.5 10.9 13.5 18.5 27.5 35.3 41.6 50-32.6 30.3-63.2 46.9-84 46.9-4.5-.1-8.3-1-11.3-2.7zm237.2-76.2c4.7 38.2-1.1 67.9-14.6 75.8-3 1.8-6.9 2.6-11.5 2.6-20.7 0-51.4-16.5-84-46.6 14-14.7 28-31.4 41.3-49.9 22.6-2.4 44-6.1 63.6-11 2.3 10.1 4.1 19.8 5.2 29.1zm38.5-66.7c-8.6 3.7-18 7-27.7 10.1-5.7-19.6-13.2-40-22.5-60.9 9.2-20.8 16.6-41.1 22.2-60.6 9.9 3.1 19.3 6.5 28.1 10.2 35.4 15.1 58.3 34.9 58.3 50.6-.1 15.7-23 35.6-58.4 50.6zM320.8 78.4z"/><circle cx="420.9" cy="296.5" r="45.7"/><path d="M520.5 78.1z"/></g></svg>
-</file>
-
 <file path="src/reportWebVitals.js">
 const reportWebVitals = onPerfEntry => {
   if (onPerfEntry && onPerfEntry instanceof Function) {
@@ -2055,57 +2739,6 @@ import '@testing-library/jest-dom';
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-</file>
-
-<file path="package.json">
-{
-  "name": "frontend",
-  "version": "0.1.0",
-  "private": true,
-  "dependencies": {
-    "@reduxjs/toolkit": "^2.11.2",
-    "@testing-library/dom": "^10.4.1",
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.2",
-    "@testing-library/user-event": "^13.5.0",
-    "axios": "^1.13.5",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
-    "react-redux": "^9.2.0",
-    "react-router-dom": "^7.13.0",
-    "react-scripts": "5.0.1",
-    "recharts": "^3.7.0",
-    "web-vitals": "^2.1.4"
-  },
-  "scripts": {
-    "start": "react-scripts start",
-    "dev": "nodemon --watch src --exec \"react-scripts start\"",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.11"
-  }
-}
 </file>
 
 <file path="README.md">
@@ -2179,6 +2812,357 @@ This section has moved here: [https://facebook.github.io/create-react-app/docs/d
 ### `npm run build` fails to minify
 
 This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+</file>
+
+<file path="src/index.css">
+:root {
+  --primary: #4f46e5; --primary-hover: #4338ca;
+  --secondary: #64748b; --bg-body: #f1f5f9; --bg-sidebar: #0f172a; --bg-card: #ffffff;
+  --text-main: #1e293b; --text-muted: #94a3b8; --border: #e2e8f0;
+  --danger: #ef4444; --warning: #f59e0b; --teal-main: #2dd4bf; --teal-dark: #14b8a6;
+  --radius: 8px; --sidebar-width: 260px;
+}
+body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg-body); color: var(--text-main); }
+
+/* Layout */
+.layout { display: flex; min-height: 100vh; }
+.content { margin-left: var(--sidebar-width); width: calc(100% - var(--sidebar-width)); padding: 2rem; box-sizing: border-box; }
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+
+/* Sidebar */
+.sidebar { width: var(--sidebar-width); background: var(--bg-sidebar); color: white; position: fixed; height: 100vh; display: flex; flex-direction: column; z-index: 100; }
+.sidebar-header { padding: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.sidebar-nav { flex: 1; padding: 1rem 0; display: flex; flex-direction: column; }
+.nav-item { padding: 12px 25px; color: var(--text-muted); text-decoration: none; cursor: pointer; display: flex; justify-content: space-between; }
+.nav-item:hover { background: rgba(255,255,255,0.05); color: white; }
+.nav-item.active { background: var(--primary); color: white; border-right: 4px solid #818cf8; }
+.submenu { background: rgba(0,0,0,0.3); display: flex; flex-direction: column; }
+.nav-item.sub-item { padding-left: 45px; font-size: 0.9rem; }
+.logout-btn { margin: 1.5rem; padding: 0.75rem; background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid var(--danger); cursor: pointer; width: calc(100% - 3rem); font-weight: bold; }
+
+/* Dashboard & Components */
+.card { background: var(--bg-card); padding: 1.5rem; border-radius: var(--radius); box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 1.5rem; }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+.stat-card { background: white; padding: 1.5rem; border-radius: var(--radius); border-left: 4px solid var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+.stat-value { font-size: 1.8rem; font-weight: 700; margin-top: 5px; }
+
+/* Forms & Inputs */
+.search-input { width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: 50px; box-sizing: border-box; }
+.form-control { width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 1rem; box-sizing: border-box; }
+.btn { padding: 0.6rem 1.2rem; border-radius: var(--radius); border: none; font-weight: 600; cursor: pointer; }
+.btn-primary { background: var(--primary); color: white; }
+.btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
+.btn-edit { background: var(--warning); color: white; margin-right: 5px; }
+.btn-delete { background: var(--danger); color: white; }
+
+/* Table */
+.table-container { overflow-x: auto; }
+.styled-table { width: 100%; border-collapse: collapse; }
+.styled-table th, .styled-table td { padding: 1rem; text-align: left; border-bottom: 1px solid var(--border); }
+.badge { background: #e0e7ff; color: var(--primary); padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; }
+
+/* Pagination */
+.pagination { display: flex; justify-content: center; gap: 5px; margin-top: 1.5rem; }
+.page-btn { width: 35px; height: 35px; border: 1px solid var(--border); background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 4px; }
+.page-btn.active { background: var(--bg-sidebar); color: white; border-color: var(--bg-sidebar); }
+
+/* Filter Controls */
+.filter-controls {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr auto;
+  gap: 15px;
+  margin-bottom: 1.5rem;
+  align-items: center;
+}
+.filter-select {
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background-color: white;
+  height: 48px;
+}
+@media (max-width: 992px) { .filter-controls { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 768px) { .filter-controls { grid-template-columns: 1fr; } }
+
+
+/* ================================================= */
+/*          NEW MINIMALIST LOGIN PAGE STYLES         */
+/* ================================================= */
+.login-page-minimal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: #ffffff; /* Pure white background */
+}
+.login-container-minimal {
+  width: 400px;
+  max-width: 90%;
+}
+.login-title-minimal {
+  font-size: 1.75rem;
+  font-weight: 600;
+  text-align: center;
+  color: #333;
+  margin-bottom: 2.5rem;
+}
+.login-form-minimal {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.input-group-minimal {
+  position: relative;
+}
+.input-icon-minimal {
+  position: absolute;
+  top: 50%;
+  left: 15px;
+  transform: translateY(-50%);
+  color: #f39c12; /* Orange icon color */
+}
+.login-input-minimal {
+  width: 100%;
+  height: 50px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 0 15px 0 45px; /* Left padding for icon */
+  font-size: 1rem;
+  box-sizing: border-box;
+  transition: border-color 0.3s;
+}
+.login-input-minimal::placeholder {
+  color: #aaa;
+}
+.login-input-minimal:focus {
+  outline: none;
+  border-color: #f39c12; /* Orange border on focus */
+}
+.login-options-minimal {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  color: #888;
+}
+.remember-me-minimal {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+.forgot-password-minimal {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: #888;
+  cursor: pointer;
+  text-decoration: none;
+}
+.forgot-password-minimal:hover {
+  text-decoration: underline;
+}
+.login-btn-minimal {
+  background-color: #f39c12; /* Orange button */
+  color: white;
+  border: none;
+  padding: 15px;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  margin-top: 1rem;
+  transition: background-color 0.3s;
+}
+.login-btn-minimal:hover {
+  background-color: #e67e22; /* Darker orange on hover */
+}
+.login-btn-minimal:disabled {
+  background-color: #fab1a0;
+  cursor: not-allowed;
+}
+
+
+/* General App Styles & Utilities */
+.error-msg {
+  color: var(--danger);
+  font-size: 0.8rem;
+  margin-top: 5px;
+  text-align: center;
+}
+.avatar-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--border);
+}
+.avatar-placeholder {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+.modal-content {
+  background: white;
+  padding: 2rem;
+  border-radius: var(--radius);
+  width: 400px;
+  max-width: 90%;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  animation: fadeIn 0.2s ease-out;
+}
+.modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+.btn-cancel {
+  background: var(--secondary);
+  color: white;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Toastify Overrides */
+.Toastify__toast {
+  border-radius: 8px !important;
+  font-family: 'Inter', sans-serif !important;
+}
+.Toastify__toast--success {
+  background: #10b981 !important;
+  color: white !important;
+}
+.Toastify__toast--error {
+  background: #ef4444 !important;
+  color: white !important;
+}
+/* ... existing styles ... */
+
+/* SKELETON LOADING ANIMATION */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.skeleton-text {
+  height: 16px;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.skeleton-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+.skeleton-btn {
+  width: 60px;
+  height: 30px;
+}
+</file>
+
+<file path="src/index.js">
+import React from "react";
+import ReactDOM from "react-dom/client";
+import { Provider } from "react-redux";
+import { store } from "./app/store";
+import App from "./App";
+import "./index.css";
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+
+root.render(
+  <Provider store={store}>
+    <App />
+  </Provider>
+);
+</file>
+
+<file path="package.json">
+{
+  "name": "frontend",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@reduxjs/toolkit": "^2.11.2",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^13.5.0",
+    "axios": "^1.13.5",
+    "dotenv": "^17.3.1",
+    "jspdf": "^4.1.0",
+    "jspdf-autotable": "^5.0.7",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-redux": "^9.2.0",
+    "react-router-dom": "^7.13.0",
+    "react-scripts": "5.0.1",
+    "react-toastify": "^11.0.5",
+    "recharts": "^3.7.0",
+    "web-vitals": "^2.1.4"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "dev": "nodemon --watch src --exec \"react-scripts start\"",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
+}
 </file>
 
 </files>

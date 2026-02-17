@@ -4,31 +4,39 @@ import { fetchEmployees, deleteEmployee } from "../features/employees/employeeSl
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import ConfirmationModal from "../components/ConfirmationModal";
+import TableSkeleton from "../components/TableSkeleton";
+import { toast } from "react-toastify";
 
 const EmployeeList = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { list, loading, totalPages, currentPage } = useSelector((state) => state.employees);
-  
-  // Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
 
   useEffect(() => { dispatch(fetchEmployees({ page: 1 })); }, [dispatch]);
 
+  // --- This function caused the warning because it wasn't connected to a button ---
   const handleDeleteClick = (id) => {
     setDeleteId(id);
-    setIsModalOpen(true);
+    setIsDeleteModalOpen(true);
   };
 
   const handleConfirmDelete = () => {
     if (deleteId) {
-      dispatch(deleteEmployee(deleteId)).then(() => {
+      dispatch(deleteEmployee(deleteId)).unwrap().then(() => {
+        toast.success("Employee deleted!");
         dispatch(fetchEmployees({ page: currentPage }));
-        setIsModalOpen(false);
-        setDeleteId(null);
-      });
+      }).catch(() => toast.error("Failed to delete."));
+      setIsDeleteModalOpen(false);
+      setDeleteId(null);
     }
+  };
+
+  const renderProfileImage = (path) => {
+    if (!path) return <div className="avatar-placeholder">?</div>;
+    return <img src={`http://localhost:5000/${path.replace(/\\/g, "/")}`} alt="profile" className="avatar-img" />;
   };
 
   return (
@@ -41,22 +49,52 @@ const EmployeeList = () => {
         </div>
         <div className="card table-container">
           <table className="styled-table">
-            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Salary</th><th>Actions</th></tr></thead>
+            <thead>
+              <tr>
+                <th>Name / ID</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Salary</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
             <tbody>
-              {loading ? <tr><td colSpan="5">Loading...</td></tr> : list.map((emp) => (
+              {loading ? <TableSkeleton rows={5} columns={5} /> : list.map((emp) => (
                 <tr key={emp.id}>
-                  <td><strong>{emp.name}</strong></td>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      {renderProfileImage(emp.profileImage)}
+                      <div>
+                        <strong>{emp.name}</strong>
+                        <br />
+                        {/* Display UUID if available, else DB ID */}
+                        <small style={{ color: "var(--secondary)", fontSize:'0.7rem' }}>
+                          ID: {emp.employeeCode ? emp.employeeCode.split('-')[0].toUpperCase() : emp.id}
+                        </small>
+                      </div>
+                    </div>
+                  </td>
                   <td>{emp.email}</td>
                   <td><span className="badge">{emp.role}</span></td>
                   <td>₹{emp.salary.toLocaleString()}</td>
                   <td>
+                    <div className="action-buttons">
+                      {/* 1. Pay Slip Button */}
+                    <button className="btn btn-sm" style={{ background: '#10b981', color: 'white', marginRight: '5px' }} onClick={() => navigate(`/employees/${emp.employeeCode}/salary`)} title="View Salary Details">Pay Slip</button>
+
+                      {/* 2. Edit Button */}
                     <button className="btn btn-edit btn-sm" onClick={() => navigate("/add-employee", { state: { employee: emp } })}>Edit</button>
-                    <button className="btn btn-delete btn-sm" onClick={() => handleDeleteClick(emp.id)}>Del</button>
+
+                      {/* 3. Delete Button (Fixes the warning) */}
+                    <button className="btn btn-delete btn-sm" onClick={() => handleDeleteClick(emp.employeeCode)}>Del</button>
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          
+          {/* Pagination */}
           {totalPages > 1 && (
             <div className="pagination">
               {Array.from({ length: totalPages }, (_, i) => (
@@ -66,14 +104,7 @@ const EmployeeList = () => {
           )}
         </div>
       </div>
-
-      <ConfirmationModal 
-        isOpen={isModalOpen}
-        title="Delete Employee"
-        message="Are you sure you want to remove this employee record?"
-        onConfirm={handleConfirmDelete}
-        onClose={() => setIsModalOpen(false)}
-      />
+      <ConfirmationModal isOpen={isDeleteModalOpen} onConfirm={handleConfirmDelete} onClose={() => setIsDeleteModalOpen(false)} title="Confirm Deletion" message="Are you sure?" />
     </div>
   );
 };
