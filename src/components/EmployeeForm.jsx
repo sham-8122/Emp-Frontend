@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { addEmployee, updateEmployee } from "../features/employees/employeeSlice";
-import { toast } from "react-toastify"; // Import
+import { toast } from "react-toastify";
 
-// --- 1. FULL LIST OF JOB ROLES RESTORED ---
+// --- 1. FULL LIST OF JOB ROLES ---
 const jobRoles = [
   "Software Engineer",
   "Senior Software Engineer",
@@ -34,7 +34,7 @@ const EmployeeForm = ({ editing, setEditing, onSuccess }) => {
       setForm({
         name: editing.name || "",
         email: editing.email || "",
-        role: editing.role || "", // This ensures the dropdown selects the correct role
+        role: editing.role || "", 
         salary: editing.salary || "",
       });
     } else {
@@ -59,7 +59,7 @@ const EmployeeForm = ({ editing, setEditing, onSuccess }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Create FormData for file upload
+    // Create FormData for file upload (Required for Multer)
     const formData = new FormData();
     formData.append("name", form.name);
     formData.append("email", form.email);
@@ -70,22 +70,31 @@ const EmployeeForm = ({ editing, setEditing, onSuccess }) => {
       formData.append("image", image);
     }
 
-        try {
+    try {
       if (editing) {
-        await dispatch(updateEmployee({ id: editing.id, updatedData: formData })).unwrap();
-        toast.success("Employee updated successfully!"); // Success Toast
+        // --- FIX: Use employeeCode instead of id to match Backend lookup logic ---
+        const identifier = editing.employeeCode || editing.id;
+
+        await dispatch(updateEmployee({ 
+          id: identifier, 
+          updatedData: formData 
+        })).unwrap();
+        
+        toast.success("Employee updated successfully!");
         if (setEditing) setEditing(null);
       } else {
         await dispatch(addEmployee(formData)).unwrap();
-        toast.success("New employee added!"); // Success Toast
+        toast.success("New employee added!");
       }
       
-          if (onSuccess) onSuccess();
+      if (onSuccess) onSuccess();
+      
+      // Reset Form
       setForm({ name: "", email: "", role: "", salary: "" });
       setImage(null);
     } catch (error) {
-      console.error("Failed:", error);
-      toast.error("Operation failed. Please try again."); // Error Toast
+      console.error("Update/Create Failed:", error);
+      toast.error("Operation failed. Please check if all fields are correct.");
     }
   };
 
@@ -103,7 +112,7 @@ const EmployeeForm = ({ editing, setEditing, onSuccess }) => {
               display: "flex", alignItems: "center", justifyContent: "center",
               border: "2px solid var(--primary)"
             }}>
-              {/* Logic to show: New Preview OR Existing Image OR Placeholder */}
+              {/* Preview Logic */}
               {image ? (
                 <img src={URL.createObjectURL(image)} alt="Preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               ) : editing && editing.profileImage ? (
@@ -129,7 +138,7 @@ const EmployeeForm = ({ editing, setEditing, onSuccess }) => {
           <input className="form-control" name="email" value={form.email} placeholder="Email" onChange={handleChange} required />
         </div>
         
-        {/* --- ROLE DROPDOWN --- */}
+        {/* Role Dropdown */}
         <div className="form-group">
           <select 
             className="form-control" 
@@ -137,7 +146,7 @@ const EmployeeForm = ({ editing, setEditing, onSuccess }) => {
             value={form.role} 
             onChange={handleChange} 
             required
-            style={{ backgroundColor: "white" }} // Force white background for visibility
+            style={{ backgroundColor: "white" }}
           >
             <option value="" disabled>Select a Role</option>
             {jobRoles.map((role) => (

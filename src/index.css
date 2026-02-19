@@ -274,3 +274,23 @@ body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg-body); 
   width: 60px;
   height: 30px;
 }
+/* Add this at the end of your index.css */
+
+/* Interactive Table Styles */
+.interactive-table tr {
+  transition: background-color 0.2s ease;
+}
+
+.interactive-table tr:hover {
+  background-color: #f1f5f9; /* Light grey on hover */
+}
+
+.selected-row {
+  background-color: #e0e7ff !important; /* Light Indigo background for selected state */
+  border-left: 4px solid var(--primary);
+}
+
+.selected-row td {
+  font-weight: 600;
+  color: var(--primary);
+}
