@@ -9,99 +9,88 @@ const Login = () => {
   const navigate = useNavigate();
   
   const { token, loading } = useSelector((state) => state.auth);
-  
   const [form, setForm] = useState({ email: "", password: "" });
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+  useEffect(() => {
+    if (token) navigate("/dashboard", { replace: true });
+  }, [token, navigate]);
+
+  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       await dispatch(loginUser(form)).unwrap();
-      toast.success("Login Successful!");
+      toast.success("Identity Verified.");
     } catch (err) {
-      toast.error(typeof err === 'string' ? err : "Invalid Credentials");
+      toast.error("Access Denied: Invalid Credentials");
     }
   };
-
-  const handleForgotPassword = () => {
-    toast.info("Password reset feature coming soon!");
-  };
-
-  useEffect(() => {
-    if (token) {
-      navigate("/dashboard", { replace: true });
-    }
-  }, [token, navigate]);
 
   return (
-    <div className="login-page-minimal">
-      <div className="login-container-minimal">
-        <h2 className="login-title-minimal">Admin Login</h2>
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-6 transition-colors duration-300">
+      <div className="w-full max-w-[1000px] bg-white dark:bg-slate-900 rounded-[40px] shadow-2xl shadow-indigo-100 dark:shadow-none flex overflow-hidden min-h-[600px] border border-slate-100 dark:border-slate-800">
         
-        <form onSubmit={handleSubmit} className="login-form-minimal">
-
-          {/* Username/Email Input */}
-          <div className="input-group-minimal">
-            <span className="input-icon-minimal">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z"/>
-              </svg>
-            </span>
-            <input 
-              type="email"
-              name="email"
-              placeholder="Username" 
-              className="login-input-minimal"
-              value={form.email}
-              onChange={handleChange}
-              required 
-            />
-          </div>
-
-          {/* Password Input */}
-          <div className="input-group-minimal">
-            <span className="input-icon-minimal">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                <path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2m3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2M5 9a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v5H5z"/>
-              </svg>
-            </span>
-            <input 
-              type="password" 
-              name="password" 
-              placeholder="Password" 
-              className="login-input-minimal" 
-              value={form.password}
-              onChange={handleChange}
-              required 
-            />
+        {/* Left Side: Branding */}
+        <div className="hidden lg:flex flex-1 bg-indigo-600 dark:bg-indigo-900 p-16 flex-col justify-between relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-400/20 rounded-full -ml-20 -mb-20 blur-3xl"></div>
+          
+          <h2 className="text-white text-3xl font-black italic tracking-tighter relative z-10">EMP.HUB</h2>
+          
+          <div className="relative z-10">
+            <h1 className="text-5xl font-black text-white leading-tight mb-6">Manage your workforce with precision.</h1>
+            <p className="text-indigo-100 dark:text-indigo-200 text-lg font-medium opacity-80">Enter your administrative credentials to access the secure control panel.</p>
           </div>
           
-          {/* Options */}
-          <div className="login-options-minimal">
-            <label className="remember-me-minimal">
-              <input type="checkbox" /> Remember me
-            </label>
-            <button 
-              type="button" 
-              className="forgot-password-minimal"
-              onClick={handleForgotPassword}
-            >
-              Forgot Password?
-            </button>
+          <div className="text-indigo-200 dark:text-indigo-300 text-sm font-bold tracking-widest uppercase relative z-10">© 2026 EMPLOYEE HUB SYSTEMS</div>
+        </div>
+
+        {/* Right Side: Form */}
+        <div className="flex-1 p-12 md:p-20 flex flex-col justify-center">
+          <div className="mb-10">
+            <h2 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight mb-2">Login</h2>
+            <p className="text-slate-400 dark:text-slate-500 font-bold text-xs uppercase tracking-[0.2em]">Administrative Portal</p>
           </div>
 
-          {/* Login Button */}
-          <button 
-            type="submit" 
-            className="login-btn-minimal"
-            disabled={loading}
-          >
-            {loading ? "..." : "LOGIN"}
-          </button>
-        </form>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Email Address</label>
+              <input 
+                name="email" 
+                type="email"
+                placeholder="admin@emphub.com" 
+                onChange={handleChange}
+                required
+                className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-indigo-500 dark:focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 rounded-2xl outline-none transition-all font-medium text-slate-700 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Secure Password</label>
+              <input 
+                name="password" 
+                type="password"
+                placeholder="••••••••" 
+                onChange={handleChange}
+                required
+                className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-indigo-500 dark:focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 rounded-2xl outline-none transition-all font-medium text-slate-700 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600"
+              />
+            </div>
+
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-sm shadow-xl shadow-indigo-100 dark:shadow-none hover:-translate-y-1 transition-all disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:shadow-none disabled:translate-y-0"
+            >
+              {loading ? "Authenticating..." : "Sign In →"}
+            </button>
+          </form>
+
+          <div className="mt-12 text-center text-slate-400 dark:text-slate-500 text-xs font-bold uppercase tracking-widest">
+            Trouble logging in? <button className="text-indigo-600 dark:text-indigo-400 hover:underline">Contact System Admin</button>
+          </div>
+        </div>
       </div>
     </div>
   );
