@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { fetchEmployees } from "../features/employees/employeeSlice";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
-import { Search, CreditCard } from "lucide-react";
+import { Search, CreditCard, AlertCircle } from "lucide-react";
 
 const SalaryList = () => {
   const dispatch = useDispatch();
@@ -21,7 +21,7 @@ const SalaryList = () => {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex font-sans text-slate-900 dark:text-slate-100 transition-colors duration-300">
       <Sidebar />
       
-      <main className="ml-sidebar flex-1 p-4 lg:p-10">
+      <main className="lg:ml-64 ml-0 pt-20 lg:pt-8 flex-1 p-4 lg:p-8 overflow-y-auto">
         {/* Header */}
         <div className="mb-10">
           <h2 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter">Payroll</h2>
@@ -63,8 +63,23 @@ const SalaryList = () => {
               ) : list.map((emp) => (
                 <tr key={emp.id} className="hover:bg-indigo-50/30 dark:hover:bg-slate-800/30 transition-colors group">
                   <td className="px-10 py-6">
-                    <div className="font-bold text-slate-800 dark:text-slate-100">{emp.name}</div>
-                    <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tighter">{emp.role}</div>
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <div className="font-bold text-slate-800 dark:text-slate-100">{emp.name}</div>
+                        <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tighter">{emp.role}</div>
+                      </div>
+                      
+                      {/* NEW: Pending Deduction Badge */}
+                      {emp.Deductions && emp.Deductions.length > 0 && (
+                        <div 
+                          className="flex items-center gap-1 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 px-2 py-0.5 rounded-lg border border-rose-200 dark:border-rose-800"
+                          title={`${emp.Deductions.length} pending adjustments`}
+                        >
+                          <AlertCircle size={10} />
+                          <span className="text-[8px] font-black uppercase tracking-tighter">Adjustment</span>
+                        </div>
+                      )}
+                    </div>
                   </td>
                   <td className="px-10 py-6 font-black text-indigo-600 dark:text-indigo-400">₹{emp.salary.toLocaleString()}</td>
                   <td className="px-10 py-6 text-right">

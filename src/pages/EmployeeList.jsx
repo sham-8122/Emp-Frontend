@@ -36,7 +36,7 @@ const EmployeeList = () => {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex font-sans text-slate-900 dark:text-slate-100 transition-colors duration-300">
       <Sidebar />
-      <main className="ml-sidebar flex-1 p-4 lg:p-10">
+      <main className="lg:ml-64 ml-0 pt-20 lg:pt-8 flex-1 p-4 lg:p-8 overflow-y-auto">
         
         {/* Page Header */}
         <div className="flex justify-between items-end mb-10">

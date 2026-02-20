@@ -68,7 +68,7 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex font-sans text-slate-900 dark:text-slate-100 transition-colors duration-300">
       <Sidebar />
-      <main className="ml-64 flex-1 p-4 lg:p-8 overflow-y-auto">
+      <main className="lg:ml-64 ml-0 pt-20 lg:pt-8 flex-1 p-4 lg:p-8 overflow-y-auto">
         <header className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Dashboard Overview</h1>
