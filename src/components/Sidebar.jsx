@@ -105,7 +105,7 @@ const Sidebar = () => {
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-md shadow-blue-500/20">
                 <span className="text-white font-bold text-lg">E</span>
               </div>
-              <span className="text-xl font-bold tracking-tight text-slate-800 dark:text-white">EMP.HUB</span>
+              <span className="text-xl font-bold tracking-tight text-slate-800 dark:text-white">EMP</span>
             </div>
             {/* Close button for Mobile only */}
             <button onClick={() => setIsMobileOpen(false)} className="lg:hidden p-1 text-slate-400">
@@ -150,7 +150,7 @@ const Sidebar = () => {
           
           <button onClick={() => { dispatch(logout()); navigate("/"); }} className="w-full flex items-center justify-center space-x-2 px-4 py-3 rounded-xl text-rose-500 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/20 transition-all font-semibold text-sm">
             <LogOut size={18} />
-            <span>Sign Out</span>
+            <span>Log out</span>
           </button>
         </div>
       </aside>

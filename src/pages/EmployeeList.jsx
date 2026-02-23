@@ -116,15 +116,13 @@ const EmployeeList = () => {
                              </button>
                              <button 
                                onClick={() => navigate("/add-employee", { state: { employee: emp } })} 
-                               className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
-                               title="Edit"
+                               className="p-2 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-xl transition-colors"                               title="Edit"
                              >
                                <Pencil size={18} />
                              </button>
                              <button 
                                onClick={() => handleDeleteClick(emp.employeeCode)} 
-                               className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors"
-                               title="Delete"
+                               className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors"                               title="Delete"
                              >
                                <Trash2 size={18} />
                              </button>

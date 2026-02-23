@@ -7,11 +7,12 @@ import "react-toastify/dist/ReactToastify.css";
 
 // --- Page Imports ---
 import Login from "./pages/Login";
+import Register from "./pages/Register"; // <--- IMPORT THIS
 import Dashboard from "./pages/Dashboard";
 import EmployeeList from "./pages/EmployeeList";
 import AddEmployee from "./pages/AddEmployee";
-import SalaryList from "./pages/SalaryList"; // Import the new List page
-import SalaryDetails from "./pages/SalaryDetails"; // Imported SalaryDetails
+import SalaryList from "./pages/SalaryList"; 
+import SalaryDetails from "./pages/SalaryDetails"; 
 
 // --- Private Route Component ---
 const PrivateRoute = ({ children }) => {
@@ -39,8 +40,9 @@ function App() {
       />
       
       <Routes>
-        {/* Public Route */}
+        {/* Public Routes */}
         <Route path="/" element={<Login />} />
+        <Route path="/register" element={<Register />} /> {/* <--- ADD THIS ROUTE */}
 
         {/* Protected Routes */}
         <Route 
@@ -57,7 +59,6 @@ function App() {
         />
         <Route path="/salary" element={<PrivateRoute><SalaryList /></PrivateRoute>} />
 
-        {/* --- NEW: Dynamic Route for Salary Pay Slip & History --- */}
         <Route 
           path="/employees/:id/salary" 
           element={<PrivateRoute><SalaryDetails /></PrivateRoute>} 

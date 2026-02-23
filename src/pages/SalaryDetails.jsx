@@ -6,7 +6,7 @@ import Sidebar from '../components/Sidebar';
 import { toast } from 'react-toastify';
 import { fetchDeductions, addDeduction, removeDeduction } from '../features/deductions/deductionSlice';
 import { 
-  ArrowLeft, Send, Calculator, PlusCircle, AlertCircle, Wallet, Edit3, Trash2 
+  ArrowLeft, Send, Calculator, PlusCircle, Wallet, Edit3, Trash2 
 } from 'lucide-react';
 
 const SalaryDetails = () => {
@@ -116,11 +116,11 @@ const SalaryDetails = () => {
         <div className="flex justify-between items-center mb-10">
           <div className="flex items-center gap-4">
              <button onClick={() => navigate('/salary')} className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl hover:bg-slate-50 transition-colors shadow-sm">
-                <ArrowLeft size={20} className="text-slate-50" />
+                <ArrowLeft size={20} className="text-slate-600 dark:text-slate-300" />
              </button>
              <div>
                 <h2 className="text-3xl font-black tracking-tighter">{employee.name}</h2>
-                <p className="text-indigo-600 dark:text-indigo-400 font-bold uppercase text-[10px] tracking-widest italic">Live Payout Audit</p>
+                {/* <p className="text-indigo-600 dark:text-indigo-400 font-bold uppercase text-[10px] tracking-widest italic">Live Payout Audit</p> */}
              </div>
           </div>
           <button onClick={handleCreditSalary} disabled={isProcessing} className="px-8 py-3 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all flex items-center gap-2">
@@ -179,7 +179,7 @@ const SalaryDetails = () => {
               <div className="space-y-6">
                 <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
                   <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest">Deductions (B)</p>
-                  <button onClick={() => setModalMode('add_deduction')} className="p-1.5 bg-rose-50 dark:bg-rose-900/30 text-rose-500 rounded-lg hover:scale-110 transition-transform"><AlertCircle size={18}/></button>
+                  <button onClick={() => setModalMode('add_deduction')} className="p-1.5 bg-rose-50 dark:bg-rose-900/30 text-rose-500 rounded-lg hover:scale-110 transition-transform"><PlusCircle size={18}/></button>
                 </div>
                 <div className="space-y-1">
                   {projection?.deductions?.length > 0 ? projection.deductions.map((d, idx) => (

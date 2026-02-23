@@ -31,18 +31,15 @@ const Login = () => {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-6 transition-colors duration-300">
       <div className="w-full max-w-[1000px] bg-white dark:bg-slate-900 rounded-[40px] shadow-2xl shadow-indigo-100 dark:shadow-none flex overflow-hidden min-h-[600px] border border-slate-100 dark:border-slate-800">
         
-        {/* Left Side: Branding */}
+        {/* Left Side: Branding (Unchanged) */}
         <div className="hidden lg:flex flex-1 bg-indigo-600 dark:bg-indigo-900 p-16 flex-col justify-between relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
           <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-400/20 rounded-full -ml-20 -mb-20 blur-3xl"></div>
-          
-          <h2 className="text-white text-3xl font-black italic tracking-tighter relative z-10">EMP.HUB</h2>
-          
+          <h2 className="text-white text-3xl font-black italic tracking-tighter relative z-10">EMP</h2>
           <div className="relative z-10">
             <h1 className="text-5xl font-black text-white leading-tight mb-6">Manage your workforce with precision.</h1>
             <p className="text-indigo-100 dark:text-indigo-200 text-lg font-medium opacity-80">Enter your administrative credentials to access the secure control panel.</p>
           </div>
-          
           <div className="text-indigo-200 dark:text-indigo-300 text-sm font-bold tracking-widest uppercase relative z-10">© 2026 EMPLOYEE HUB SYSTEMS</div>
         </div>
 
@@ -87,9 +84,17 @@ const Login = () => {
             </button>
           </form>
 
-          <div className="mt-12 text-center text-slate-400 dark:text-slate-500 text-xs font-bold uppercase tracking-widest">
-            Trouble logging in? <button className="text-indigo-600 dark:text-indigo-400 hover:underline">Contact System Admin</button>
+          {/* --- ADDED REGISTER LINK HERE --- */}
+          <div className="mt-8 text-center space-y-2">
+            <p className="text-slate-400 dark:text-slate-500 text-[10px] font-bold uppercase tracking-widest">
+              Don't have an account? 
+              <button onClick={() => navigate("/register")} className="ml-1 text-indigo-600 dark:text-indigo-400 hover:underline">Create Account</button>
+            </p>
+            <p className="text-slate-400 dark:text-slate-500 text-[10px] font-bold uppercase tracking-widest">
+              Trouble logging in? <button className="text-indigo-600 dark:text-indigo-400 hover:underline">Contact System Admin</button>
+            </p>
           </div>
+          
         </div>
       </div>
     </div>
